@@ -17,8 +17,24 @@ gcloud auth application-default login     # your own BigQuery access — no keys
 uv run dbt run  --select <model> --profiles-dir .           # build yesterday
 uv run dbt run  --select <model> --vars "{run_date: '2026-09-23'}" --profiles-dir .   # build one day
 uv run dbt test --select <model> --profiles-dir .           # run its tests (incl. parity vs legacy)
-.\backfill_compare.ps1 -Days 7                              # backfill a week + parity gate
+.\scripts\backfill_compare.ps1 -Model <model> -Days 7       # backfill a week + full test gate
 ```
+
+## Migrating a new table
+
+One command drives the whole per-table sequence (generate named parity test,
+dry-run the cost, backfill, gate): in Claude Code, run
+
+```
+/migrate-table <model_name> <legacy_project.dataset.table> <date_column>
+```
+
+Conventions every migrated model follows:
+- incremental by day partition, date-parameterized via `--vars run_date`
+  (defaults to yesterday)
+- legacy table declared in `models/sources.yml`
+- parity test named `tests/parity__<model_name>.sql`, referencing the model
+  via `ref()` so `dbt test --select <model>` picks it up automatically
 
 Models write to `wego-cloud.dbt_learning` (dev target). Always dry-run new
 models — one full run of the pilot model scans ~560 GB (~$3.50).
