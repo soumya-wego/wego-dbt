@@ -1,0 +1,28 @@
+# Sources = tables dbt READS but does not build (yet).
+# ab_testing and pricing_fares_analysis are actually built by other scheduled
+# queries — once those are migrated as dbt models, these become ref()s instead.
+version: 2
+
+sources:
+  - name: wego_analytics
+    database: wego-cloud
+    schema: wego_analytics
+    tables:
+      - name: ab_testing
+        description: A/B test session assignments (session_id x experiment x variant). Built by the ab_testing scheduled query.
+      - name: flights_searches
+        description: Every flight search on the platform, one row per search. Partitioned by _PARTITIONTIME.
+
+  - name: analysis
+    database: wego-cloud
+    schema: analysis
+    tables:
+      - name: pricing_fares_analysis
+        description: BOW fare snapshots per search/itinerary/provider. Built by the pricing_fares_analysis scheduled query; partition column is created_at.
+
+      - name: autopricing_ab_test_legacy
+        identifier: autopricing_ab_test
+        description: >
+          The LEGACY production table, still written by the old scheduled query.
+          Declared only so the parity test can compare the dbt model against it
+          during the migration window. Delete this source after cutover.

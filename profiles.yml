@@ -1,0 +1,14 @@
+# The connection profile — how dbt talks to BigQuery.
+# method: oauth reuses your gcloud login; no passwords stored here.
+wego_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: wego-cloud
+      dataset: dbt_learning        # scratch dataset — nothing touches production tables
+      location: US
+      threads: 4
+      priority: interactive
+      job_execution_timeout_seconds: 600

@@ -1,0 +1,44 @@
+# Documentation + tests for the autopricing_ab_test model.
+# Everything written here appears in `dbt docs`; every `data_tests:` entry
+# is checked automatically on every `dbt build`.
+version: 2
+
+models:
+  - name: autopricing_ab_test            # must match the .sql filename
+    description: >
+      Autopricing A/B test daily extract. Joins yesterday's BOW fares
+      (pricing_fares_analysis, oneway/direct, wego.com with multiple providers)
+      to A/B test session variants, restricted to the airport routes that make
+      up the top 60% of clicks (Jan–Jun 2026 baseline).
+      Migrated from the BigQuery scheduled query "autopricing_ab_test";
+      legacy destination: analysis.autopricing_ab_test.
+
+    columns:
+      - name: created_at
+        description: Fare snapshot date (always yesterday relative to the run).
+        data_tests:
+          - not_null
+
+      - name: site_code
+        description: POS — market where the user is browsing.
+        data_tests:
+          - not_null
+
+      - name: search_id
+        description: Search that produced the fare; join key to flights_searches.
+
+      - name: variant
+        description: >
+          A/B experiment variant of the session (null when the fare's search
+          didn't belong to a tracked experiment session).
+
+      - name: experiment
+        description: Experiment name from wego_analytics.ab_testing.
+
+      - name: airport_route_revised
+        description: Airport-level OD pair (e.g. RUH-CAI) built from first departure/arrival.
+
+      - name: bow_original_total_fare_usd
+        description: BOW original total fare in USD (filter guarantees non-null).
+        data_tests:
+          - not_null

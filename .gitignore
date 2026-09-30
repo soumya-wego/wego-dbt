@@ -1,0 +1,12 @@
+# Python environment — never ships anywhere (see: the .venv incident, 3 acts)
+.venv/
+
+# dbt build artifacts — regenerated on every run, machine-local
+target/
+logs/
+dbt_packages/
+.user.yml
+
+# Python bytecode
+__pycache__/
+*.pyc

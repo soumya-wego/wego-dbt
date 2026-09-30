@@ -1,0 +1,10 @@
+# The project config — every dbt project has exactly one of these.
+name: wego_dbt
+version: "1.0.0"
+profile: wego_dbt          # which connection profile to use (see profiles.yml)
+
+model-paths: ["models"]    # where the .sql model files live
+
+models:
+  wego_dbt:
+    +materialized: table   # default: each model builds a real table

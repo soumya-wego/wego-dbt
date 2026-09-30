@@ -1,0 +1,29 @@
+# PR gate — pilot phase: free checks only (no BigQuery access, no GCP auth).
+# Catches broken SQL/jinja, bad ref()/source(), invalid yml, DAG syntax errors.
+#
+# Phase 2 (before migration table #2): add a dbt-ci service account via
+# Workload Identity Federation and upgrade the last step to
+#   dbt build --select state:modified+ --target ci
+# so the parity test runs automatically against the CI dataset.
+name: PR checks
+
+on:
+  pull_request:
+
+jobs:
+  dbt-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install exact environment from uv.lock
+        run: uv sync
+
+      - name: dbt parse (validates project, models, tests, refs — offline)
+        run: uv run dbt parse --profiles-dir .
+
+      - name: DAG file syntax check
+        run: uv run python -m py_compile dags/wego_dbt_cosmos.py
