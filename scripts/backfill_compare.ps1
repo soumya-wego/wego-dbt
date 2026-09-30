@@ -18,7 +18,11 @@
 param(
     [Parameter(Mandatory = $true)][string]$Model,
     [int]$Days = 7,
-    [string]$EndDate   # yyyy-MM-dd; default: yesterday
+    [string]$EndDate,        # yyyy-MM-dd; default: yesterday
+    [double]$Tolerance = 0.01   # 1% — backfill mode: recomputed history sees
+                                # late-arriving data the legacy snapshots froze
+                                # out. Nightly same-day runs (Airflow) use the
+                                # test's strict default instead.
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,8 +38,8 @@ for ($i = $Days - 1; $i -ge 0; $i--) {
     if ($LASTEXITCODE -ne 0) { throw "build failed for $Model on $d" }
 }
 
-Write-Host "=== testing $Model (parity window: $Days days) ===" -ForegroundColor Cyan
-uv run dbt test --select $Model --vars "{compare_days: $Days}" --profiles-dir .
+Write-Host "=== testing $Model (parity window: $Days days, tolerance: $Tolerance) ===" -ForegroundColor Cyan
+uv run dbt test --select $Model --vars "{compare_days: $Days, tolerance: $Tolerance}" --profiles-dir .
 if ($LASTEXITCODE -ne 0) { throw "tests failed for $Model" }
 
 Write-Host "=== $Model : backfill + tests green ===" -ForegroundColor Green

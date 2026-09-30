@@ -28,6 +28,14 @@ dry run) costs real money. Run them in order; stop at any red gate.
 - The model is incremental by day partition and honors `--vars run_date`
   (grep for `var("run_date"` / `var('run_date'`). If it doesn't, stop: the
   model isn't migration-conventional yet — fix that first.
+- If the destination table ALREADY exists (earlier dev runs), verify it is
+  actually partitioned — incremental models never retrofit config changes, so
+  a table created before `partition_by` was added stays unpartitioned and
+  breaks insert_overwrite silently:
+  `select partition_id, total_rows from <dataset>.INFORMATION_SCHEMA.PARTITIONS where table_name = '<model>'`
+  One NULL partition holding everything = unpartitioned → the first backfill
+  day must run with `--full-refresh` (drops and recreates; same cost as a
+  normal day-run; get user approval since it discards the existing rows).
 
 ### 2. Generate the named parity test (free)
 Invoke the `bq-parity-test` skill with the model, legacy table, and date
@@ -51,22 +59,63 @@ of the target days already exist in the destination table
 (`select distinct <date_column> ... where <date_column> >= ...` — metadata-cheap)
 and subtract them. **Wait for explicit user approval of the cost.**
 
-### 4. Backfill + gate (the paid step)
+### 4. TRIAL PARITY — compare before materializing (the cheap gate)
+Ask the user for two things:
+- the window: a number of complete days, or an inclusive date range
+- the % tolerance for this table's comparison. Suggest 1% as the usual
+  backfill value (late-arriving data on recomputed history) and explain the
+  trade-off: tighter catches more, looser tolerates snapshot noise — but the
+  number is theirs to set per table. Convert % to a fraction for the
+  `tolerance` var (1% -> 0.01). Use the SAME value in step 5's script call
+  (`-Tolerance`), and note it in the PR evidence so the reviewer sees what
+  the gate was held to.
+
+Then compare the MODEL'S QUERY directly against legacy in one
+aggregate query — no table is built, and the model's fixed upstream scans
+are paid once instead of once per day (~5x cheaper than build-then-test,
+and each fix-retry iteration stays cheap):
+
+1. Compile the model for the range:
+   `uv run dbt compile --select <model> --vars "{run_date_start: '<start>', run_date_end: '<end>'}" --profiles-dir .`
+2. Build a trial query in the scratchpad (never committed): take the
+   compiled SELECT from `target/compiled/.../<model>.sql` as a CTE named
+   `new_side_raw`, then reuse the fingerprint structure from
+   `tests/parity__<model>.sql` — aggregate new_side_raw and the legacy table
+   per day over the same range, full outer join, violations-only select,
+   using the tolerance the user chose above.
+3. Dry-run the trial query, report the price, get approval, run it via bq.
+4. Zero rows → parity holds; show the summary. Violation rows → diagnose
+   (see step 6's signatures), fix the model, re-trial — iterations cost ~one
+   fixed scan each, so loop freely BEFORE spending on materialization.
+
+### 5. Materialize + full gate (the paid step, only after trial is green)
 ```
-.\scripts\backfill_compare.ps1 -Model <model_name> -Days <days>
+.\scripts\backfill_compare.ps1 -Model <model_name> -Days <days> -Tolerance <fraction from step 4>
 ```
 Builds one day per run (oldest first, stops on first failure), then runs ALL
-the model's tests — the parity test is selected automatically because it
-ref()s the model.
+the model's tests — the committed parity test is selected automatically
+because it ref()s the model. This confirms the materialized table (incremental
+config, partitioning, insert_overwrite) behaves like the trial query did.
+(Cheaper variant for wide windows: one range run —
+`dbt run --select <model> --vars "{run_date_start: ..., run_date_end: ...}"` —
+insert_overwrite replaces all partitions in the result in a single pass;
+verify partition counts afterwards.)
 
-### 5. Report the gate
+### 6. Report the gate
 - **Green**: print the PASS summary and the PR checklist — branch, commit the
   model + `tests/parity__<model>.sql` together, paste the test output into the
   PR description, request review.
 - **Red**: show the failing day/metric rows (suggest `--store-failures` for a
-  queryable audit table), and remind: fix the model, re-run only the broken
-  day (`-Days 1 -EndDate <that day>`), re-test. Never widen tolerance to make
-  red green without the user saying so explicitly.
+  queryable audit table) and diagnose BEFORE touching anything. Known
+  signature — late-arriving data (expected on every backfill): new side
+  uniformly ~0.1–1% HIGHER on counts/sums, gap similar across old days, and
+  the most recent day (computed the same morning as legacy) PASSING. That is
+  snapshot timing, not a model bug: backfill mode already runs at 1% tolerance
+  (script default); same-day nightly runs stay strict. Any other pattern —
+  new side LOWER, huge gaps, missing days, variant coverage broken — is a real
+  model bug: fix the model, re-run only the broken day
+  (`-Days 1 -EndDate <that day>`), re-test. Never widen tolerance to make red
+  green without the user saying so explicitly.
 
 ## Cost discipline (why the order is what it is)
 Steps 1–3 are free; step 4 is the only one that scans. The dry run comes

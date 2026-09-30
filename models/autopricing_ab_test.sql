@@ -42,10 +42,21 @@ base_table as (
     from {{ source('analysis', 'pricing_fares_analysis') }} as a
     left join searches_experiment as b
         on a.search_id = b.search_id
-    where a.created_at = coalesce(
-              safe.parse_date('%Y-%m-%d', '{{ var("run_date", "") }}'),
-              current_date - 1
-          )
+    -- single day by default (run_date, else yesterday); a range when
+    -- run_date_start/run_date_end are passed — used by trial parity runs
+    -- and range backfills, paying the fixed upstream scans once instead of
+    -- once per day
+    where a.created_at between
+              coalesce(
+                  safe.parse_date('%Y-%m-%d', '{{ var("run_date_start", "") }}'),
+                  safe.parse_date('%Y-%m-%d', '{{ var("run_date", "") }}'),
+                  current_date - 1
+              )
+          and coalesce(
+                  safe.parse_date('%Y-%m-%d', '{{ var("run_date_end", "") }}'),
+                  safe.parse_date('%Y-%m-%d', '{{ var("run_date", "") }}'),
+                  current_date - 1
+              )
       and a.provider_code = 'wego.com'
       and a.providers_status = 'multiple providers'
       and a.trip_type = 'oneway'
