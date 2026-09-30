@@ -41,9 +41,12 @@ dry run) costs real money. Run them in order; stop at any red gate.
 Invoke the `bq-parity-test` skill with the model, legacy table, and date
 column. It introspects INFORMATION_SCHEMA on both sides, reports the schema
 diff, proposes per-column fingerprints, and writes
-`tests/parity__<model_name>.sql`. Present its classification table and let the
-user trim before continuing. If a parity test for this model already exists,
-skip generation and say so.
+`tests/parity__<model_name>.sql`, REPLACING the file if it already exists —
+regeneration from the current schemas is the point of re-running the command,
+and the file is git-tracked, so the overwrite surfaces as a reviewable diff in
+the next PR rather than silently losing anything. Present the classification
+table and let the user trim before continuing; if the old file had hand-made
+trims, point out what the regeneration would undo.
 
 ### 3. Price the backfill (free)
 Dry-run one representative day and report the bill before spending it:
