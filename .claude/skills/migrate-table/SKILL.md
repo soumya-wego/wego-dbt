@@ -6,8 +6,10 @@ description: >
   INFORMATION_SCHEMA, ask the user for the comparison window (days or an
   inclusive date range) and the % tolerance, classify each column into a
   fingerprint (sum / count distinct / null-coverage), and write
-  tests/parity__<model>.sql with the user's window and tolerance baked in as
-  defaults — so a plain `uv run dbt test --select <model>` runs their gate.
+  tests/parity__<model>.sql with the MODEL'S OWN SQL inlined as a CTE (no
+  table is built or referenced) and the user's window and tolerance baked in
+  as defaults — so a plain `uv run dbt test --select parity__<model>` runs
+  their gate against the query itself.
   Use whenever the user says /migrate-table, "generate the parity test",
   "regenerate the test for <model>", or migrates a scheduled query to dbt.
 ---
@@ -63,26 +65,39 @@ reason) and let the user trim before writing.
 Write `tests/parity__<model_name>.sql`, overwriting the current file if it
 exists (regeneration is the point of re-running the command; the file is
 git-tracked, so the overwrite shows up as a reviewable diff — nothing is
-silently lost). Follow the structure of the pilot's validated template
-(`~/.claude/skills/bq-parity-test/assets/parity_test_template.sql`):
-- two identically-aggregated CTEs (model via `ref()`, legacy via `source()`),
-  grouped by the date column
-- the window clause from the user's answer: `>= date_sub(current_date,
-  interval N day)` for days, or `between '<start>' and '<end>'` for a range —
-  as the DEFAULT of a `compare_days`/`compare_start`/`compare_end` var
-- ALL comparisons relative, sharing one `tolerance` var whose DEFAULT is the
-  user's chosen fraction
-- full outer join on the grain; violations-only select; each row carries a
-  `failed_check` label and both sides' values
+silently lost).
 
-Because window and tolerance are baked in as var defaults, the user's gate is
-simply:
+**The new side is the MODEL'S OWN SQL inlined as a CTE — never `ref()` to the
+built table.** No table has to exist (or be paid for) before the gate runs;
+the test compares the query's output directly against legacy, entirely inside
+one BigQuery job. Construction:
+
+1. Read `models/<model_name>.sql`. Strip the `{{ config(...) }}` block; keep
+   everything else verbatim — its `{{ source() }}` jinja compiles fine inside
+   a test.
+2. Wrap it as the first CTE, `model_output as ( ... )`.
+3. Replace the model's run-date predicate (the `var("run_date"...)` filter)
+   with the user's window on the date column: `between '<start>' and '<end>'`
+   for a range, or `>= date_sub(current_date, interval N day)` (and
+   `< current_date`, complete days only) for N days. The legacy side gets the
+   IDENTICAL window clause.
+4. Then the validated comparison structure: aggregate `model_output` and the
+   legacy `source()` per day with the same fingerprints, full outer join on
+   the grain, violations-only select, each row carrying a `failed_check`
+   label and both sides' values. ALL comparisons relative, sharing one
+   `tolerance` var whose DEFAULT is the user's chosen fraction.
+
+Since the test no longer references `ref('<model>')`, it is selected by its
+own name — the user's gate is:
 
 ```
-uv run dbt test --select <model_name> --profiles-dir .
+uv run dbt test --select parity__<model_name> --profiles-dir .
 ```
 
-(overridable per-run with `--vars` without editing the file).
+Cost note to tell the user: each test run recomputes the model over the
+window (~one fixed upstream scan — for the pilot ~$4), because it validates
+the QUERY rather than a built table. That is the trade: the gate runs before
+any table exists, and red-loop iterations cost ~$4, not a full backfill.
 
 ### 5. Stop
 
