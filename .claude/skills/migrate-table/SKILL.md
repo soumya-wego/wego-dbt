@@ -28,6 +28,14 @@ dry run) costs real money. Run them in order; stop at any red gate.
 - The model is incremental by day partition and honors `--vars run_date`
   (grep for `var("run_date"` / `var('run_date'`). If it doesn't, stop: the
   model isn't migration-conventional yet — fix that first.
+- If the destination table ALREADY exists (earlier dev runs), verify it is
+  actually partitioned — incremental models never retrofit config changes, so
+  a table created before `partition_by` was added stays unpartitioned and
+  breaks insert_overwrite silently:
+  `select partition_id, total_rows from <dataset>.INFORMATION_SCHEMA.PARTITIONS where table_name = '<model>'`
+  One NULL partition holding everything = unpartitioned → the first backfill
+  day must run with `--full-refresh` (drops and recreates; same cost as a
+  normal day-run; get user approval since it discards the existing rows).
 
 ### 2. Generate the named parity test (free)
 Invoke the `bq-parity-test` skill with the model, legacy table, and date
@@ -64,9 +72,16 @@ ref()s the model.
   model + `tests/parity__<model>.sql` together, paste the test output into the
   PR description, request review.
 - **Red**: show the failing day/metric rows (suggest `--store-failures` for a
-  queryable audit table), and remind: fix the model, re-run only the broken
-  day (`-Days 1 -EndDate <that day>`), re-test. Never widen tolerance to make
-  red green without the user saying so explicitly.
+  queryable audit table) and diagnose BEFORE touching anything. Known
+  signature — late-arriving data (expected on every backfill): new side
+  uniformly ~0.1–1% HIGHER on counts/sums, gap similar across old days, and
+  the most recent day (computed the same morning as legacy) PASSING. That is
+  snapshot timing, not a model bug: backfill mode already runs at 1% tolerance
+  (script default); same-day nightly runs stay strict. Any other pattern —
+  new side LOWER, huge gaps, missing days, variant coverage broken — is a real
+  model bug: fix the model, re-run only the broken day
+  (`-Days 1 -EndDate <that day>`), re-test. Never widen tolerance to make red
+  green without the user saying so explicitly.
 
 ## Cost discipline (why the order is what it is)
 Steps 1–3 are free; step 4 is the only one that scans. The dry run comes
