@@ -23,7 +23,23 @@ operations as part of this command.
 
 ## Steps
 
-### 1. Fetch the legacy table's columns (free, metadata-only)
+### 1. FIRST ACTION — ask the user two questions
+
+Before reading any file or running any query, ask (one AskUserQuestion call
+or one plain message, nothing else first):
+
+- **Window**: a number of complete days, or an inclusive date range
+  (start and end dates).
+- **% tolerance**: suggest 1% for backfill comparisons (recomputed history
+  sees late-arriving data that legacy's frozen snapshots missed — validated
+  on the pilot: ~+0.3% rows, new side higher, while the same-day-computed day
+  matched exactly). Tighter catches more; looser tolerates snapshot noise.
+  Convert % to a fraction (1% -> 0.01).
+
+Also collect here any missing usage argument (model, legacy table, date
+column). Do not proceed until answered.
+
+### 2. Fetch the legacy table's columns (free, metadata-only)
 
 ```
 bq query --use_legacy_sql=false --format=csv "select column_name, data_type from <dataset>.INFORMATION_SCHEMA.COLUMNS where table_name = '<table>' order by ordinal_position"
@@ -33,16 +49,6 @@ The legacy table is the schema contract — the model is supposed to match it,
 so classify from the legacy side alone (the model's table may not even be
 built yet, which is fine). The legacy table must be declared as a source in
 `models/sources.yml`; add it if missing — never hardcode table names in tests.
-
-### 2. Ask the user two questions
-
-- **Window**: a number of complete days, or an inclusive date range
-  (start and end dates).
-- **% tolerance**: suggest 1% for backfill comparisons (recomputed history
-  sees late-arriving data that legacy's frozen snapshots missed — validated
-  on the pilot: ~+0.3% rows, new side higher, while the same-day-computed day
-  matched exactly). Tighter catches more; looser tolerates snapshot noise.
-  Convert % to a fraction (1% -> 0.01).
 
 ### 3. Classify each column into a fingerprint
 
