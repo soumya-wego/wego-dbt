@@ -60,8 +60,17 @@ of the target days already exist in the destination table
 and subtract them. **Wait for explicit user approval of the cost.**
 
 ### 4. TRIAL PARITY — compare before materializing (the cheap gate)
-Ask the user for the window: a number of complete days, or an inclusive date
-range. Then compare the MODEL'S QUERY directly against legacy in one
+Ask the user for two things:
+- the window: a number of complete days, or an inclusive date range
+- the % tolerance for this table's comparison. Suggest 1% as the usual
+  backfill value (late-arriving data on recomputed history) and explain the
+  trade-off: tighter catches more, looser tolerates snapshot noise — but the
+  number is theirs to set per table. Convert % to a fraction for the
+  `tolerance` var (1% -> 0.01). Use the SAME value in step 5's script call
+  (`-Tolerance`), and note it in the PR evidence so the reviewer sees what
+  the gate was held to.
+
+Then compare the MODEL'S QUERY directly against legacy in one
 aggregate query — no table is built, and the model's fixed upstream scans
 are paid once instead of once per day (~5x cheaper than build-then-test,
 and each fix-retry iteration stays cheap):
@@ -73,8 +82,7 @@ and each fix-retry iteration stays cheap):
    `new_side_raw`, then reuse the fingerprint structure from
    `tests/parity__<model>.sql` — aggregate new_side_raw and the legacy table
    per day over the same range, full outer join, violations-only select,
-   tolerance 0.01 (backfill semantics: recomputed history sees late-arriving
-   data legacy's frozen snapshots missed).
+   using the tolerance the user chose above.
 3. Dry-run the trial query, report the price, get approval, run it via bq.
 4. Zero rows → parity holds; show the summary. Violation rows → diagnose
    (see step 6's signatures), fix the model, re-trial — iterations cost ~one
@@ -82,7 +90,7 @@ and each fix-retry iteration stays cheap):
 
 ### 5. Materialize + full gate (the paid step, only after trial is green)
 ```
-.\scripts\backfill_compare.ps1 -Model <model_name> -Days <days>
+.\scripts\backfill_compare.ps1 -Model <model_name> -Days <days> -Tolerance <fraction from step 4>
 ```
 Builds one day per run (oldest first, stops on first failure), then runs ALL
 the model's tests — the committed parity test is selected automatically
