@@ -30,6 +30,8 @@ models:
         +schema: hotels_l2
       platform:
         +schema: platform_l2
+      skyscanner:
+        +schema: hotels_l2   # distribution is hotels-owned per the redesign plan; own dataset later if the team wants one
     l3:
       flights:
         +schema: flights_l3
@@ -37,3 +39,5 @@ models:
         +schema: hotels_l3
       platform:
         +schema: platform_l3
+      skyscanner:
+        +schema: hotels_l3   # see l2 note
