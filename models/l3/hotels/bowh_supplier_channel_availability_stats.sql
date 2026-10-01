@@ -1,11 +1,16 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : bowh_supplier_channel_availability_stats_append
 -- Destination: analysis.bowh_supplier_channel_availability_stats  (unchanged)
 -- Schedule   : every mon 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('ib_hotels_supplier_worker', 'supplier_search_analytics') }}
 {% raw %}
 INSERT INTO analysis.bowh_supplier_channel_availability_stats
 

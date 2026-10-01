@@ -1,11 +1,19 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : trains_clicks_daily_append
 -- Destination: analysis.trains_clicks  (unchanged)
 -- Schedule   : every day 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('services_genzo', 'events_actions') }}
+-- depends_on: {{ source('services_genzo', 'provider_conversions') }}
+-- depends_on: {{ source('wego_analytics', 'pageviews') }}
+-- depends_on: {{ source('wego_analytics', 'sessions') }}
 {% raw %}
 SELECT
 MAX(created_at) as created_at,

@@ -1,11 +1,28 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : competitor_installs_session_data
 -- Destination: analysis.competitor_installs_session_data  (unchanged)
 -- Schedule   : 20 of month 00:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('analytics', 'countries_misc') }}
+-- depends_on: {{ source('appannie', 'app_id_legend') }}
+-- depends_on: {{ source('appannie', 'apps_usage') }}
+-- depends_on: {{ source('appannie', 'compareapps') }}
+-- depends_on: {{ source('similarweb', 'country_mapping') }}
+-- depends_on: {{ source('similarweb', 'geo') }}
+-- depends_on: {{ source('similarweb', 'outgoing_referrals_mapping') }}
+-- depends_on: {{ source('similarweb', 'pre20190501_search_visits_distribution') }}
+-- depends_on: {{ source('similarweb', 'search_visits_distribution') }}
+-- depends_on: {{ source('similarweb', 'static_analysis') }}
+-- depends_on: {{ source('similarweb', 'traffic_engagement') }}
+-- depends_on: {{ source('similarweb', 'web_legend') }}
+-- depends_on: {{ source('similarweb', 'web_legend_expired_domains') }}
 {% raw %}
 -- create table analysis.competitor_installs_session_data
 -- as

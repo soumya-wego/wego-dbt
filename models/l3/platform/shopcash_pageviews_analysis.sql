@@ -1,11 +1,23 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : shopcash_pageviews_analysis_daily_append
 -- Destination: shopcash_analytics.shopcash_pageviews_analysis  (unchanged)
 -- Schedule   : every day 01:45   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('services_shopcash', 'events_actions') }}
+-- depends_on: {{ source('shopcash', 'banners') }}
+-- depends_on: {{ source('shopcash', 'categories') }}
+-- depends_on: {{ source('shopcash', 'deals') }}
+-- depends_on: {{ source('shopcash', 'store_collections') }}
+-- depends_on: {{ source('shopcash', 'stores') }}
+-- depends_on: {{ source('shopcash_analytics', 'pageviews') }}
+-- depends_on: {{ source('shopcash_analytics', 'sessions') }}
 {% raw %}
 -- Backfill:
 -- create or replace table

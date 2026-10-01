@@ -1,11 +1,16 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : wego_pageviews_anaysis_price_comparison
 -- Destination: analysis.wego_pageviews_anaysis_price_comparison  (unchanged)
 -- Schedule   : every day 01:50   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ ref('wego_pageviews_analysis') }}
 {% raw %}
 -- CREATE OR REPLACE TABLE `wego-cloud.analysis.wego_pageviews_anaysis_price_comparison` PARTITION BY DATE(created_at) AS
 -- WITH

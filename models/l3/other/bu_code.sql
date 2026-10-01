@@ -1,11 +1,33 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : ota_data_upload_template_working_30Oct24
 -- Destination: ota_data_upload_template_working_30oct24.bu_code  (unchanged)
 -- Schedule   : every day 16:15   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('netsuite_metrics_v1', 'bu_code') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'chart_of_accounts') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'currency_exchanges_rates') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'departments') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'market_segment') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'products') }}
+-- depends_on: {{ source('netsuite_metrics_v1', 'subsidiary') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'bucode') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'chartofaccounts') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'customer') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'department') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'entitylookup') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'marketsegment') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'product') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'subsidiary') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'taxcodes') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'vccprovider') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'vendors') }}
 {% raw %}
 CREATE OR REPLACE TABLE `wego-cloud.ota_data_upload_template_working_30Oct24.bu_code` AS (
   -- SELECT * FROM `wego-cloud.ota_data_upload_template_working_30Oct24.BUCode` -- Ready to migrate

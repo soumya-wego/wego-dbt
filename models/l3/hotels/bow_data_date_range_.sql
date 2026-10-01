@@ -1,11 +1,44 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : hotel_sort_order_bqml_bow
 -- Destination: hotel_sort_order_ml.bow_data_date_range_  (unchanged)
 -- Schedule   : every mon 00:30   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('analytics', 'wego_pos') }}
+-- depends_on: {{ source('hotel_services', 'brands') }}
+-- depends_on: {{ source('hotel_services', 'chains') }}
+-- depends_on: {{ source('hotel_services', 'hotels') }}
+-- depends_on: {{ source('hotel_services', 'images') }}
+-- depends_on: {{ source('hotel_services', 'property_types') }}
+-- depends_on: {{ source('hotel_services', 'reviews') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'bow_rf_model_predict_') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'bow_training_data_') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'bow_training_data_downsample_') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'v1_bow_rf_model_predict_') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'v1_bow_training_data_') }}
+-- depends_on: {{ source('hotel_sort_order_ml', 'v1_bow_training_data_downsample_') }}
+-- depends_on: {{ source('hotels', 'bow_hotel_rank_wa_ml') }}
+-- depends_on: {{ source('hotels', 'bow_hotel_rank_wa_ml_v1') }}
+-- depends_on: {{ source('hotels', 'hotel_stats') }}
+-- depends_on: {{ source('hotels', 'provider_hotels') }}
+-- depends_on: {{ source('hotels', 'usual_price') }}
+-- depends_on: {{ source('ml', 'evaluate') }}
+-- depends_on: {{ source('ml', 'feature_importance') }}
+-- depends_on: {{ source('ml', 'global_explain') }}
+-- depends_on: {{ source('ml', 'predict') }}
+-- depends_on: {{ source('place_services', 'countries') }}
+-- depends_on: {{ source('place_services', 'districts') }}
+-- depends_on: {{ source('place_services', 'locations') }}
+-- depends_on: {{ source('services_akasha', 'rates') }}
+-- depends_on: {{ source('services_genzo', 'impressions_logs') }}
+-- depends_on: {{ source('wego_analytics', 'hotels_bookings') }}
+-- depends_on: {{ source('wego_analytics', 'pageviews') }}
 {% raw %}
 ## HOTEL SORT ORDER RANDOM FOREST
 --- a. Manual Date Range

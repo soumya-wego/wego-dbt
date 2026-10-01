@@ -1,11 +1,18 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : saba_cross_supplier_netcost
 -- Destination: analysis.saba_cross_supplier_netcost  (unchanged)
 -- Schedule   : every 24 hours   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('integrated_bookings_flights', 'branded_fares') }}
+-- depends_on: {{ source('services_curiosity', 'branded_fare_calculations') }}
+-- depends_on: {{ source('services_curiosity', 'fare_calculations') }}
 {% raw %}
 INSERT INTO `wego-cloud.analysis.saba_cross_supplier_netcost`
 WITH saba AS (

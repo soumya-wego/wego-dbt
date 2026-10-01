@@ -1,11 +1,32 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : Flights Bookings Ticket Level
 -- Destination: wego_analytics.flights_bookings_ticket_level  (unchanged)
 -- Schedule   : every day 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_ancillary_logs') }}
+-- depends_on: {{ source('analytics', 'exchange_rates') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'etickets') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'gds') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'ipccs') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'itineraries') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'legs') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'pccs') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'prices') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'segments') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'vendor_fees') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'vendors') }}
+-- depends_on: {{ source('place_services', 'airports') }}
+-- depends_on: {{ source('place_services', 'countries') }}
+-- depends_on: {{ source('place_services', 'locations') }}
+-- depends_on: {{ source('services_curiosity', 'branded_fare_calculations') }}
+-- depends_on: {{ source('wego_analytics', 'flights_bookings') }}
 {% raw %}
 CREATE OR REPLACE TABLE `wego-cloud.wego_analytics.flights_bookings_ticket_level`
 PARTITION BY DATE(ticket_created_at) AS

@@ -1,11 +1,34 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : bow_flights_bookings_netsuite_details_full
 -- Destination: aaaaa_temporary_export_folder.gmv_flights_booking_v2_1  (unchanged)
 -- Schedule   : every day 07:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'cogs_flights_booking_v2_1') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'cogs_flights_cancellation_v2_1') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'cogs_flights_exchange_v2_1') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'cogs_flights_insurance_v2_1') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_ancillary_ota_logs') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_bookings_cancelled_logs_audit') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_bookings_exchanged_logs_audit') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_bookings_ticketed_logs_audit') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'flights_vat_report') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'gmv_flights_cancellation_v2_1') }}
+-- depends_on: {{ source('aaaaa_temporary_export_folder', 'gmv_flights_exchange_v2_1') }}
+-- depends_on: {{ source('analytics', 'countries_misc') }}
+-- depends_on: {{ source('analytics', 'exchange_rates') }}
+-- depends_on: {{ source('ota_data_upload_template_working_30oct24', 'vcc_provider') }}
+-- depends_on: {{ source('payments', 'partners') }}
+-- depends_on: {{ source('payments', 'payments') }}
+-- depends_on: {{ source('wego_analytics', 'flights_bookings') }}
+-- depends_on: {{ source('wego_analytics', 'flights_insurance') }}
+-- depends_on: {{ source('wego_analytics', 'hotels_bookings') }}
 {% raw %}
 DECLARE cutoff_KFH100 TIMESTAMP DEFAULT NULL;
 DECLARE cutoff_ref_KFH100 STRING DEFAULT NULL;

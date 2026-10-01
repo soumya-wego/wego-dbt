@@ -1,11 +1,38 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : Offline flights bookings - Back Office dataset
 -- Destination: wego_analytics.flights_bookings_offline_back_office  (unchanged)
 -- Schedule   : every day 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('analytics', 'exchange_rates') }}
+-- depends_on: {{ source('back_office', 'bookings') }}
+-- depends_on: {{ source('back_office', 'itineraries') }}
+-- depends_on: {{ source('back_office', 'legs') }}
+-- depends_on: {{ source('back_office', 'passengers') }}
+-- depends_on: {{ source('back_office', 'payments') }}
+-- depends_on: {{ source('back_office', 'prices') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'ipccs') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'payment_sources') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'pccs') }}
+-- depends_on: {{ source('integrated_bookings_flights', 'vendors') }}
+-- depends_on: {{ source('integrated_bookings_payments', 'checkout') }}
+-- depends_on: {{ source('integrated_bookings_payments', 'payments') }}
+-- depends_on: {{ source('payments', 'fees') }}
+-- depends_on: {{ source('payments', 'partner_account_payment_method_fees') }}
+-- depends_on: {{ source('payments', 'partner_account_payment_methods') }}
+-- depends_on: {{ source('payments', 'partner_accounts') }}
+-- depends_on: {{ source('payments', 'partners') }}
+-- depends_on: {{ source('payments', 'payment_actions') }}
+-- depends_on: {{ source('payments', 'payment_methods') }}
+-- depends_on: {{ source('payments', 'payment_sources') }}
+-- depends_on: {{ source('payments', 'payments') }}
+-- depends_on: {{ source('payments', 'routes') }}
 {% raw %}
 SELECT
 	*,

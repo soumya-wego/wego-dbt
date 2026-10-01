@@ -1,11 +1,17 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : hotel_matching_overall_daily_run
 -- Destination: analysis.hotel_matching_overall  (unchanged)
 -- Schedule   : every day 00:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('hotel_services', 'hotels') }}
+-- depends_on: {{ source('hotels', 'provider_hotels') }}
 {% raw %}
 INSERT INTO `wego-cloud.analysis.hotel_matching_overall`
   (snapshot_date, total_wego_hotel_count, active_wego_hotel_count,

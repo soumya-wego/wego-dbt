@@ -1,11 +1,19 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : app_installs_master_daily_append_v2
 -- Destination: analysis.app_installs_master  (unchanged)
 -- Schedule   : every day 04:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('analytics', 'countries_misc') }}
+-- depends_on: {{ source('apsalar', 'attribution_consolidated') }}
+-- depends_on: {{ source('external_appsflyer', 'installs') }}
+-- depends_on: {{ source('external_appsflyer', 'post_attribution_installs') }}
 {% raw %}
 -- create table 
 -- analysis.app_installs_master

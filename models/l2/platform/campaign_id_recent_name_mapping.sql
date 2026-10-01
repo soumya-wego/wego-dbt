@@ -1,11 +1,18 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : campaign_id_recent_name_mapping
 -- Destination: analysis.campaign_id_recent_name_mapping  (unchanged)
 -- Schedule   : every day 00:30   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('adwords_dts', 'ads_campaign_2851107229') }}
+-- depends_on: {{ source('adwords_dts', 'p_campaign_2851107229') }}
+-- depends_on: {{ source('marketing_analytics', 'cost') }}
 {% raw %}
 with name_date_mapping as
 (

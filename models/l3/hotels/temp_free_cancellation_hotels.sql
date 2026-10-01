@@ -1,11 +1,19 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : Marketing_Feeds_Free_Cancellation_Hotels_List
 -- Destination: marketing_feeds.temp_free_cancellation_hotels  (unchanged)
 -- Schedule   : every day 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('ib_hotels_supplier_worker', 'raw_rates') }}
+-- depends_on: {{ source('marketing_feeds', 'free_breakfast_hotels') }}
+-- depends_on: {{ source('marketing_feeds', 'free_cancellation_hotels') }}
+-- depends_on: {{ source('marketing_feeds', 'temp_free_breakfast_hotels') }}
 {% raw %}
 -- Temporary table to hold updated data
 CREATE OR REPLACE TABLE `marketing_feeds.temp_free_cancellation_hotels` AS

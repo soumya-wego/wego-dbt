@@ -1,11 +1,21 @@
-{{ config(enabled=false) }}
--- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model. Do not enable.
+{{ config(materialized='ephemeral') }}
+-- LEGACY SCHEDULED QUERY -- verbatim SQL, NOT yet a dbt model.
+-- Ephemeral: dbt and Cosmos never run or bill this; it exists so the full
+-- dependency DAG is visible in dbt docs. Do NOT ref() it from a real model
+-- until it is properly migrated.
 -- Query      : goreward_hotel_list_v1
 -- Destination: analysis.goreward_comparable_v1  (unchanged)
 -- Schedule   : every day 02:00   State: SUCCEEDED
 -- Migrate via /migrate-table: rewrite reads as source()/ref(), make it
--- incremental+date-parameterized, remove enabled=false, add the parity test.
--- The raw block below keeps jinja from interpreting any braces in legacy SQL.
+-- incremental+date-parameterized, set materialized, add the parity test.
+-- Edges below are declared from the parsed legacy SQL; the raw block keeps
+-- jinja from interpreting any braces in it.
+-- depends_on: {{ source('analysis', 'goreward_hotel_list_v1') }}
+-- depends_on: {{ source('analysis', 'goreward_hotel_stats_v1') }}
+-- depends_on: {{ source('analysis', 'hotels_detail_list') }}
+-- depends_on: {{ source('analysis', 'supplier_channel_mapping') }}
+-- depends_on: {{ source('analysis', 'v__hotel_supplier_details') }}
+-- depends_on: {{ source('ib_hotels', 'wegorates') }}
 {% raw %}
 -- GoReward daily pipeline — single scheduled query
 -- Paste this into BQ console > Scheduled Queries, run daily (e.g. 02:00 UTC)
