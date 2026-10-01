@@ -4,7 +4,36 @@ version: "1.0.0"
 profile: wego_dbt          # which connection profile to use (see profiles.yml)
 
 model-paths: ["models"]    # where the .sql model files live
+macro-paths: ["macros"]
 
+# Layered per the table-redesign plan (L1/L2/L3): the folder a model lives in
+# IS its layer, and +schema maps it to the layer dataset. In the dev target
+# everything still lands in one sandbox dataset (see macros/
+# generate_schema_name.sql); the layer datasets apply on the prod target.
+#
+# Layer rules (enforced at PR review; see README):
+#   l1 — one raw source, cleaned. The ONLY place source() on raw is allowed.
+#   l2 — joined at a business grain, every row kept. ref() to l1 only.
+#   l3 — built for one consumer. ref() to l2 (+ dim lookups). Filters live here.
 models:
   wego_dbt:
-    +materialized: table   # default: each model builds a real table
+    +materialized: table
+    l1:
+      flights:
+        +schema: flights_l1
+      hotels:
+        +schema: hotels_l1
+    l2:
+      flights:
+        +schema: flights_l2
+      hotels:
+        +schema: hotels_l2
+      platform:
+        +schema: platform_l2
+    l3:
+      flights:
+        +schema: flights_l3
+      hotels:
+        +schema: hotels_l3
+      platform:
+        +schema: platform_l3
