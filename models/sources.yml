@@ -2,9 +2,10 @@
 # from the live scheduled-query inventory; table names are the real BigQuery names,
 # unchanged. Roles: l1 = data-engineering built, dim = lookup (any layer may read),
 # raw = feed (the L1 shelf per the redesign plan), legacy = analysis/pricing_engine.
-# A legacy table that is itself a scheduled-query destination is a BRIDGE: a
-# temporary source until its query migrates, then every reader's source() becomes a
-# ref(). Bridges are marked below.
+# RULE: a scheduled-query destination is a FUTURE MODEL (see docs/migration-map.md),
+# never a source — dependents migrate after (or together with) their upstream, so
+# they can ref() it. The only two exceptions are tables today's models already read,
+# marked pending_model below; each dies when its upstream query migrates.
 version: 2
 
 sources:
@@ -79,17 +80,13 @@ sources:
     tables:
       - name: ab_testing
         description: A/B test session assignments (session_id x experiment x variant). Built by the ab_testing scheduled query.
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
+        meta: {pending_model: true}  # written by a scheduled query that existing models read TODAY; migrate it, switch readers to ref(), delete this entry. Do not add new readers.
       - name: booking_com_assumed_gross_margin
       - name: booking_com_bow_hotels_revenue_report
       - name: clients
       - name: flight_bookings_offline_sheet
       - name: flights_bookables
       - name: flights_bookings
-      - name: flights_bookings_passengers
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: flights_bookings_ticket_level
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: flights_clicks
       - name: flights_insurance
       - name: flights_searches
@@ -111,73 +108,25 @@ sources:
       - name: autopricing_ab_test_legacy
         identifier: autopricing_ab_test
         description: Legacy production table, still written by the old scheduled query. Parity target for tests/parity__autopricing_ab_test.sql only — never a model input. Delete after cutover.
-      - name: bow_branded_fares_selected
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: bow_flights_supplier_fare_analysis
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: bowh_supplier_availability_aggregated
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: bowh_supplier_mapping
-      - name: campaign_id_recent_name_mapping
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: client_lifetime_kpis
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: clients_sessions_aggregated_daily
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: clients_sessions_aggregated_daily_master
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: flights_alliances
-      - name: flights_amadeus_schedule
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: goreward_hotel_list_v1
       - name: goreward_hotel_stats_v1
       - name: hotels_detail_list
       - name: hotels_margins_rule_scope
       - name: hotels_margins_rules_cos
       - name: hotels_margins_rules_scope
-      - name: hotels_partner_requests_responses
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: hotels_partner_requests_responses_aggregated
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: hotels_pricing_analysis_initial_markups
-      - name: hotels_searches_funnel
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: ipcc_candidate_vs_chosen
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: ipcc_checker_reference
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: ipcc_scorecard_30d
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: platform_install_costs_app_data
       - name: platform_install_costs_app_data_v2
       - name: pricing_engine_ota_setup
       - name: pricing_fares_analysis
         description: BOW fare snapshots per search/itinerary/provider. Built by the pricing_fares_analysis scheduled query; partition column is created_at.
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: saba_cross_supplier_netcost
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
+        meta: {pending_model: true}  # written by a scheduled query that existing models read TODAY; migrate it, switch readers to ref(), delete this entry. Do not add new readers.
       - name: skyscanner_bid_file_upload_eb_latest
-      - name: skyscanner_bid_hotel_list
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: skyscanner_top_hotel_list_monthly
       - name: supplier_channel_mapping
       - name: v__hotel_supplier_details
-      - name: wego_pageviews_analysis
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: wego_rates_analysis
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-
-  - name: pricing_engine
-    database: wego-cloud
-    schema: pricing_engine
-    meta: {role: "legacy"}
-    tables:
-      - name: hotels_pricing_engine_distribution
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: hotels_pricing_engine_distribution_calculation
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
-      - name: hotels_pricing_engine_ota_calculation
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
 
   - name: adwords_dts
     database: wego-cloud
@@ -368,8 +317,6 @@ sources:
       - name: pccs
       - name: prices
       - name: segments
-      - name: unused_tickets
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: vendor_commissions
       - name: vendor_fees
       - name: vendors
@@ -655,8 +602,6 @@ sources:
       - name: flights_bookings_exchanged_logs_audit
       - name: flights_bookings_ticketed_logs_audit
       - name: flights_vat_report
-      - name: gmv_cogs_flights_hotels_unpivoted
-        meta: {bridge: true}  # written by a scheduled query -> becomes ref() once migrated
       - name: gmv_flights_booking_details
       - name: gmv_flights_cancellation_details
       - name: gmv_flights_cancellation_v2_1
